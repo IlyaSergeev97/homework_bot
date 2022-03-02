@@ -34,7 +34,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Делает запрос к API сервиса"""
+    """Делает запрос к API сервиса."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
