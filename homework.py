@@ -25,7 +25,7 @@ HOMEWORK_STATUSES = {
 
 
 def send_message(bot, message):
-    '''Отправляет сообщение в Telegram чат.'''
+    """Отправляет сообщение в Telegram чат."""
     try:
         bot = telegram.Bot(token=TELEGRAM_TOKEN)
         return bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
@@ -34,7 +34,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    '''Делает запрос к API сервиса'''
+    """Делает запрос к API сервиса"""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -48,7 +48,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    '''Проверяет ответ API на корректность. '''
+    """Проверяет ответ API на корректность."""
     homework = response['homeworks']
     if type(homework) is not list:
         logging.error('Ответ приходят не в виде списка')
@@ -57,7 +57,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    '''Извлекает из информации о домашней работе статус этой работы.'''
+    """Извлекает из информации о домашней работе статус этой работы."""
     homework_name = homework.get('homework_name')
     if 'homework_name' not in homework:
         logging.error('В ответе API не содержится ключ homework_name.')
@@ -72,7 +72,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    '''Проверяем доступность переменных окружения.'''
+    """Проверяем доступность переменных окружения."""
     if (PRACTICUM_TOKEN is None
        and TELEGRAM_TOKEN is None
        and TELEGRAM_CHAT_ID is None):
