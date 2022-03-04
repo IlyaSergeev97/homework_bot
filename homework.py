@@ -1,12 +1,14 @@
-import os
 import logging
-import telegram
+import os
 import time
-import requests
-from dotenv import load_dotenv
 from http import HTTPStatus
-from settings import RETRY_TIME, HOMEWORK_STATUSES, ENDPOINT
 
+import requests
+import telegram
+from dotenv import load_dotenv
+
+from CustomError import MissingvariableeException
+from settings import ENDPOINT, HOMEWORK_STATUSES, RETRY_TIME
 
 load_dotenv()
 
@@ -48,13 +50,19 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
-    homework = response['homeworks']
-    if homework is None:
-        logging.error('В ответе нет такого ключа как homeworks')
-    if type(homework) is not list:
-        logging.error('Ответ приходят не в виде списка')
+    if len(response['homeworks']) == 0:
+        logging.error('Ответ приходят в виде пустого списка')
     else:
-        return homework
+        homework = response.get('homeworks')
+        if homework is None:
+            print(homework)
+            logging.error('В ответе нет такого ключа как homeworks')
+            raise Exception('В ответе нет такого ключа как homeworks')
+        elif type(homework) is not list:
+            print(homework)
+            logging.error('Ответ приходят не в виде списка')
+        else:
+            return homework
 
 
 def parse_status(homework):
@@ -74,16 +82,10 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверяем доступность переменных окружения."""
-    variable = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    if all(variable) is None:
+    variable = all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
+    if variable is None:
         logging.error('Отсутствует хотя бы одна переменная окружения')
-    return all(variable)
-
-
-class MissingvariableeException(Exception):
-    """Класс исключений если отсутсвует переменная."""
-
-    pass
+    return variable
 
 
 def main():
@@ -94,14 +96,12 @@ def main():
         while True:
             try:
                 response = get_api_answer(current_timestamp)
-                text = parse_status(response.get('homeworks')[0])
-                if response.get('homeworks'):
-                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
+                text = parse_status(check_response(response)[0])
+                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
                 current_timestamp = response.get('current_date')
                 time.sleep(RETRY_TIME)
             except Exception as error:
-                message = f'Сбой в работе программы: {error}'
-                logging.error(message)
+                logging.error(f'Сбой в работе программы: {error}')
                 time.sleep(RETRY_TIME)
     else:
         logging.error('Отсутствует хотя бы одна переменная окружения')
