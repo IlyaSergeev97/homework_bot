@@ -7,7 +7,8 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from CustomError import MissingvariableeException
+from CustomError import (EmptylistException, MissingvariableeException,
+                         NotlistException, StatusException)
 from settings import ENDPOINT, HOMEWORK_STATUSES, RETRY_TIME
 
 load_dotenv()
@@ -26,7 +27,6 @@ logging.basicConfig(
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
-        bot = telegram.Bot(token=TELEGRAM_TOKEN)
         return bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except Exception as error:
         logging.error(f'Ошибка при отправке сообщения: {error}')
@@ -45,24 +45,23 @@ def get_api_answer(current_timestamp):
             logging.error('Ошибка в формате json')
     else:
         logging.error('Не удалось проверить статус задания')
-        raise Exception('Не удалось проверить статус задания')
+        raise StatusException('Не удалось проверить статус задания')
 
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
-    if len(response['homeworks']) == 0:
-        logging.error('Ответ приходят в виде пустого списка')
+    if 'homeworks' not in response:
+        logging.error('Отсутствует ключ homeworks')
+        raise TypeError('Отсутствует ключ homeworks')
     else:
         homework = response.get('homeworks')
-        if homework is None:
-            print(homework)
-            logging.error('В ответе нет такого ключа как homeworks')
-            raise Exception('В ответе нет такого ключа как homeworks')
+        if len(homework) == 0:
+            logging.error('Ответ приходят в виде пустого списка')
+            raise EmptylistException('Ответ приходят в виде пустого списка')
         elif type(homework) is not list:
-            print(homework)
             logging.error('Ответ приходят не в виде списка')
-        else:
-            return homework
+            raise NotlistException('Ответ приходят не в виде списка')
+        return homework
 
 
 def parse_status(homework):
@@ -75,17 +74,13 @@ def parse_status(homework):
         logging.error('В ответе API не содержится ключ status.')
     if homework_status not in HOMEWORK_STATUSES.keys():
         logging.error(f'Статус домашней работы {homework_status} некорректен.')
-    verdict = HOMEWORK_STATUSES[homework_status]
-    message = f'Изменился статус проверки работы "{homework_name}". {verdict}'
-    return message
+    return (f'Изменился статус проверки работы "{homework_name}". \
+{HOMEWORK_STATUSES[homework_status]}')
 
 
 def check_tokens():
     """Проверяем доступность переменных окружения."""
-    variable = all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
-    if variable is None:
-        logging.error('Отсутствует хотя бы одна переменная окружения')
-    return variable
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def main():
@@ -96,13 +91,13 @@ def main():
         while True:
             try:
                 response = get_api_answer(current_timestamp)
-                text = parse_status(check_response(response)[0])
-                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
-                current_timestamp = response.get('current_date')
-                time.sleep(RETRY_TIME)
+                if check_response(response):
+                    message = parse_status(check_response(response)[0])
+                    send_message(bot, message)
+                    current_timestamp = response.get('current_date')
             except Exception as error:
                 logging.error(f'Сбой в работе программы: {error}')
-                time.sleep(RETRY_TIME)
+            time.sleep(RETRY_TIME)
     else:
         logging.error('Отсутствует хотя бы одна переменная окружения')
         raise MissingvariableeException('Отсутствует'
